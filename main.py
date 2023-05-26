@@ -12,6 +12,57 @@ buttons_cancel = [
     ],
 ]
 
+
+async def add_statistics(the_user_id):
+    global sqliteConnection
+    import sqlite3
+
+    try:
+        # Connect to DB and create a cursor
+        sqliteConnection = sqlite3.connect('database.db')
+        cursor = sqliteConnection.cursor()
+        print('DB Init')
+
+        # Write a query and execute it with cursor
+        # query = 'select sqlite_version();'
+        cursor.execute(f"select add_statistics from statistics where user_id = '{the_user_id}'")
+        old_val = cursor.fetchall()
+        print("old_val:", old_val)
+        if not old_val:
+            cursor.execute(f'insert into statistics (user_id, add_statistics) values ({the_user_id}, 1);')
+            sqliteConnection.commit()
+            print(f"user {the_user_id} inserted")
+        else:
+            for i in old_val:
+                new_val = int(i[0]) + 1
+                cursor.execute(f'update statistics set add_statistics = {new_val} where user_id = {the_user_id};')
+                sqliteConnection.commit()
+
+        cursor.close()
+
+        #
+        # try:
+        #     # Fetch and output result
+        #     result = cursor.fetchall()
+        #     print('SQLite Version is {}'.format(result))
+        # except sqlite3.Error as error:
+        #     print('error dad {}'.format(error))
+
+
+        # Close the cursor
+        cursor.close()
+
+    # Handle errors
+    except sqlite3.Error as error:
+        print('Error occurred - ', error)
+
+    # Close DB Connection irrespective of success
+    # or failure
+    finally:
+        if sqliteConnection:
+            sqliteConnection.close()
+            print('SQLite Connection closed')
+
 async def message_handler(event):
     global status
     buttons = [
@@ -56,7 +107,7 @@ async def message_handler(event):
         )
         await reply.reply("پیامت بهش رسید")
 
-    if event.chat.last_name is None:
+    if hasattr(event.chat, "last_name"):
         user_full_name = event.chat.first_name
     else:
         user_full_name = f"{event.chat.first_name} {event.chat.last_name}"
@@ -65,7 +116,7 @@ async def message_handler(event):
         await event.client.send_message(
             event.chat_id,
             "\n به ربات **قرارگاه سایبری ابالفضل (ع)** خوش آمدید \n 🇮🇷🇮🇷🇮🇷️"
-                .format(event.chat.first_name),
+            .format(event.chat.first_name),
             file="assets/icon.jpg",
             buttons=buttons,
         )
@@ -148,6 +199,7 @@ async def chat_handler(event):
     if event.user_joined:
         await event.delete()
     elif event.user_added:
+        await add_statistics(event.added_by.id)
         await event.delete()
         # await event.client.send_message(
         #     event.chat_id,
