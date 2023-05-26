@@ -63,6 +63,7 @@ async def add_statistics(the_user_id):
             sqliteConnection.close()
             print('SQLite Connection closed')
 
+
 async def message_handler(event):
     global status
     buttons = [
@@ -107,10 +108,14 @@ async def message_handler(event):
         )
         await reply.reply("پیامت بهش رسید")
 
-    if hasattr(event.chat, "last_name"):
-        user_full_name = event.chat.first_name
-    else:
-        user_full_name = f"{event.chat.first_name} {event.chat.last_name}"
+    try:
+        if not hasattr(event.chat, "last_name"):
+            user_full_name = event.chat.first_name
+        else:
+            user_full_name = f"{event.chat.first_name} {event.chat.last_name}"
+    except AttributeError:
+        user_full_name = ""
+        print(AttributeError)
 
     if msg == "/start" or msg == "انصراف 🫠":
         await event.client.send_message(
@@ -146,53 +151,57 @@ async def message_handler(event):
     elif msg == "/contact":
         await contact_trigger(event)
     else:
-        reply_btn = [
-            [
-                Button.inline("🤪پاسخ به این پیام", f"response_{event.chat.id}"),
-                Button.inline("⛔ بلاک 🚫", f"block_{event.chat.id}"),
-            ],
-        ]
-        await send_msg_to_admin(
-            msg_type="forward",
-            event=event,
-        )
-        await send_msg_to_admin(
-            msg_type="send",
-            event=event,
-            text="پیام از: \n\n"
-                 "⭕ PeerID: [{uid}](tg://user?id={uid}) \n\n"
-                 "⭕ Name: [{name}](tg://user?id={uid}) \n\n"
-                 "⭕ UserName: [@{username}](https://t.me/{username}) \n\n"
-                 "⭕ Tel: [{phone}](https://t.me/{phone}) \n\n\n\n"
-                 "Text:\n\n `{text}`".format(
-                uid=event.chat.id,
-                name=user_full_name,
-                username=event.chat.username,
-                phone=event.chat.phone,
-                text=msg,
-            ),
-            file=event.message.media,
-            btn=reply_btn,
-        )
-        status = None
-        if status == "report":
-            await event.client.forward_messages(AdminID, event.message)
-        elif status == "hamkari":
-            await event.client.forward_messages(AdminID, event.message)
-        # elif status == "join":
-        #     await event.reply(" با تشکر از حمایت شما \n به امید پیروزی \n ✌️✌️✌️")
-        elif status == "replying":
-            await event.client.send_message(
-                response_id,
-                f"ادمین به پیام شما پاسخ داد🔽🔽🔽\n\n\n{msg}",
-                buttons=Button.clear()
-            )
+        if event.is_group:
+            if event.message.from_id.user_id not in AdminsDic:
+                await event.delete()
         else:
-            await event.client.send_message(
-                event.chat_id,
-                " با تشکر از پیام شما \n به امید سربازی در رکاب امام زمان (عج) \n ✌🇮🇷",
-                buttons=Button.clear()
+            reply_btn = [
+                [
+                    Button.inline("🤪پاسخ به این پیام", f"response_{event.chat.id}"),
+                    Button.inline("⛔ بلاک 🚫", f"block_{event.chat.id}"),
+                ],
+            ]
+            await send_msg_to_admin(
+                msg_type="forward",
+                event=event,
             )
+            await send_msg_to_admin(
+                msg_type="send",
+                event=event,
+                text="پیام از: \n\n"
+                     "⭕ PeerID: [{uid}](tg://user?id={uid}) \n\n"
+                     "⭕ Name: [{name}](tg://user?id={uid}) \n\n"
+                     "⭕ UserName: [@{username}](https://t.me/{username}) \n\n"
+                     "⭕ Tel: [{phone}](https://t.me/{phone}) \n\n\n\n"
+                     "Text:\n\n `{text}`".format(
+                    uid=event.chat.id,
+                    name=user_full_name,
+                    username=event.chat.username,
+                    phone=event.chat.phone,
+                    text=msg,
+                ),
+                file=event.message.media,
+                btn=reply_btn,
+            )
+            status = None
+            if status == "report":
+                await event.client.forward_messages(AdminID, event.message)
+            elif status == "hamkari":
+                await event.client.forward_messages(AdminID, event.message)
+            # elif status == "join":
+            #     await event.reply(" با تشکر از حمایت شما \n به امید پیروزی \n ✌️✌️✌️")
+            elif status == "replying":
+                await event.client.send_message(
+                    response_id,
+                    f"ادمین به پیام شما پاسخ داد🔽🔽🔽\n\n\n{msg}",
+                    buttons=Button.clear()
+                )
+            else:
+                await event.client.send_message(
+                    event.chat_id,
+                    " با تشکر از پیام شما \n به امید سربازی در رکاب امام زمان (عج) \n ✌🇮🇷",
+                    buttons=Button.clear()
+                )
 
 
 async def chat_handler(event):
@@ -210,6 +219,9 @@ async def chat_handler(event):
     elif event.user_left or event.user_kicked:
         # await event.replay("برو دست خدای مهربون")
         await event.delete()
+    else:
+        if event.chat.id not in AdminsDic:
+            await event.delete()
 
 
 async def inline_handler(event):
